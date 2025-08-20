@@ -1,18 +1,21 @@
 from abc import ABC, abstractmethod
 import torch
 import os
+import numpy as np
+from tqdm import tqdm
+import json
+
 from src.loaders.model_loader import save_checkpoint
 from src.train.adamw import AdamW
 from src.train.cross_entropy import cross_entropy
 from argparse import ArgumentParser
 from src.loaders.data_loader import data_loader
-import json
 from src.language_model.transformer_lm import TransformerLM
 from src.tokenizer import Tokenizer
-from src.language_model.softmax import softmax
 from src.train.gradient_clipping import gradient_clipping
 from src.train.learning_rate_schedule import learning_rate_schedule, WarmupCosine
 from src.train.contrastive_loss import contrastive_loss
+
 
 class Trainer(ABC):
 
@@ -101,10 +104,12 @@ class SFTTrainer(Trainer):
             metrics.update({
                 'loss': loss.item(),
                 'grad_norm': grad_norm,
-                'acc': torch.sum(torch.argmax(logits, dim=-1) == batch['labels']).item() / batch['labels'].numel(),
-                'c_loss': c_loss.item()
+                'acc': torch.sum(torch.argmax(logits, dim=-1) == batch['labels']).item() / batch['labels'].numel()
             })
-            
+
+            if self.config['contrastive_loss']['use_contrastive_loss']:
+                metrics['c_loss'] = c_loss.item()
+
             metrics.update(optimizer_metrics)
             global_step += 1
             
@@ -113,7 +118,7 @@ class SFTTrainer(Trainer):
                 metrics.update(val_metrics)
             
             if global_step % self.config['log_interval'] == 0:
-                print(f"Step {global_step}, Metrics: {metrics}")
+                print(f"Step {global_step}, Metrics: {metrics}", flush=True)
 
             if global_step % self.config['save_interval'] == 0:
                 save_checkpoint(self.model, self.optimizer, global_step, os.path.join(self.config['save_dir'], f"checkpoint_{global_step}.pt"))
@@ -125,7 +130,7 @@ class SFTTrainer(Trainer):
         val_lm_loss = 0
         val_c_loss = 0
         with torch.no_grad():
-            for i in range(self.val_data['input_ids'].shape[0]):
+            for i in tqdm(range(self.val_data['input_ids'].shape[0]), desc="Validating"):
                 logits, final_hidden_states = self.model(self.val_data['input_ids'][i], return_hidden_states=True)
                 loss = self.loss_fn(logits, self.val_data['labels'][i])
                 val_loss += loss.item()
@@ -146,7 +151,7 @@ class SFTTrainer(Trainer):
 
     def generate(self, text, max_new_tokens):
         with torch.no_grad():
-            input_ids = self.tokenizer.encode(text).unsqueeze(0).to(self.model.device)
+            input_ids = self.tokenizer.encode(text, return_tensors=True).unsqueeze(0).to(self.model.device)
             output = self.model.generate(input_ids, max_new_tokens, temperature=1.0, do_sample=True, eos_token=self.tokenizer.eos_token_id, pad_token=self.tokenizer.pad_token_id)
             return self.tokenizer.decode(output[0].tolist())
 
@@ -175,11 +180,7 @@ def main():
     pretty_log(f"model: {model}")
     
     pretty_log("Loading tokenizer")
-    if 'pretrained_tokenizer' in config:
-        from transformers import AutoTokenizer
-        tokenizer = AutoTokenizer.from_pretrained(config['pretrained_tokenizer'])
-    else:
-        tokenizer = Tokenizer.from_files(config['vocab_filepath'], config['merges_filepath'], config['special_tokens'])
+    tokenizer = Tokenizer.from_files(config['vocab_filepath'], config['merges_filepath'], config['special_tokens'])
 
     # print the tokenizer
     print(f"vocab size: {len(tokenizer.vocab)}")
@@ -196,11 +197,12 @@ def main():
         torch.save(train_input_ids, config['train_input_ids'])
         torch.save(val_input_ids, config['val_input_ids'])
     else:
-        train_input_ids = torch.load(config['train_input_ids'])
-        val_input_ids = torch.load(config['val_input_ids'])
+        # train_input_ids = np.memmap(config['train_input_ids'], mode='r', dtype=np.int32)
+        train_input_ids = torch.from_numpy(np.load(config['train_input_ids']))
+        val_input_ids = torch.from_numpy(np.load(config['val_input_ids']))
 
-    print(f"Train input ids: {len(train_input_ids)}")
-    print(f"Val input ids: {len(val_input_ids)}")
+    print(f"Train input ids: {len(train_input_ids)}", flush=True)
+    print(f"Val input ids: {len(val_input_ids)}", flush=True)
 
     trainer = SFTTrainer(model, train_input_ids, val_input_ids, data_loader, tokenizer, config)
     trainer.fit()

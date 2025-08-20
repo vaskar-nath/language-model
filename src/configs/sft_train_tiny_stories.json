@@ -24,17 +24,17 @@
     "save_dir": "/mnt/efs/vaskarnath/practice/spring2024-assignment1-basics/ckpt",
     "train_steps": 200000,
     "val_steps": 500,
-    "vocab_filepath": "/mnt/efs/vaskarnath/practice/spring2024-assignment1-basics/cs336_basics/data/TinyStoriesV2-GPT4-valid_vocab.json",
-    "merges_filepath": "/mnt/efs/vaskarnath/practice/spring2024-assignment1-basics/cs336_basics/data/TinyStoriesV2-GPT4-valid_merges.txt",
+    "vocab_filepath": "/mnt/efs/vaskarnath/practice/language-model/tokenizers/TinyStoriesV2-GPT4-train_tokenizer/vocab.json",
+    "merges_filepath": "/mnt/efs/vaskarnath/practice/language-model/tokenizers/TinyStoriesV2-GPT4-train_tokenizer/merges.txt",
     "special_tokens": ["<|endoftext|>"],
     "train_dataset_path": "/mnt/efs/vaskarnath/practice/spring2024-assignment1-basics/cs336_basics/data/TinyStoriesV2-GPT4-train.txt",
     "val_dataset_path": "/mnt/efs/vaskarnath/practice/spring2024-assignment1-basics/cs336_basics/data/TinyStoriesV2-GPT4-valid.txt",
     "gradient_clipping": 1.0,
     "contrastive_loss": {
-        "use_contrastive_loss": true,
+        "use_contrastive_loss": false,
         "n_samples": 8,
         "beta": 0.5
     },
-    "train_input_ids": "/mnt/efs/vaskarnath/practice/spring2024-assignment1-basics/cs336_basics/data/TinyStoriesV2-GPT4-train_input_ids.pt",
-    "val_input_ids": "/mnt/efs/vaskarnath/practice/spring2024-assignment1-basics/cs336_basics/data/TinyStoriesV2-GPT4-valid_input_ids.pt"
+    "train_input_ids": "/mnt/efs/vaskarnath/practice/language-model/data/TinyStoriesV2-GPT4-train_token_ids.npy",
+    "val_input_ids": "/mnt/efs/vaskarnath/practice/language-model/data/TinyStoriesV2-GPT4-valid_token_ids.npy"
 }

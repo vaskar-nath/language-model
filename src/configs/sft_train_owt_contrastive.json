@@ -1,13 +1,15 @@
 {
-    "vocab_size": 50000,
-    "context_length": 512,
-    "d_model": 512,
-    "num_layers": 4,
-    "num_heads": 16,
-    "d_ff": 2048,
-    "attn_pdrop": 0.1,
-    "residual_pdrop": 0.1,
-    "weight_decay": 0.1,
+    "model_configs": {
+        "vocab_size": 50000,
+        "context_length": 512,
+        "d_model": 512,
+        "num_layers": 4,
+        "num_heads": 16,
+        "d_ff": 2048,
+        "attn_pdrop": 0.1,
+        "residual_pdrop": 0.1,
+        "weight_decay": 0.1
+    },
     "learning_rate": {
         "max_learning_rate": 6e-4,
         "min_learning_rate": 3e-4,
@@ -21,7 +23,7 @@
     "val_interval": 1000,
     "log_interval": 1,
     "save_interval": 1000,
-    "save_dir": "/mnt/efs/vaskarnath/practice/owt_lm",
+    "save_dir": "/mnt/efs/vaskarnath/practice/owt_lm_contrastive_v2",
     "train_steps": 200000,
     "val_steps": 500,
     "vocab_filepath": "/mnt/efs/vaskarnath/practice/language-model/tokenizers/owt_train_tokenizer/vocab.json",
@@ -29,12 +31,12 @@
     "pretrained_tokenizer": "openai-community/gpt2-xl",
     "special_tokens": ["<|endoftext|>"],
     "train_dataset_path": "/mnt/efs/vaskarnath/practice/language-model/data/owt_train.txt",
-    "val_dataset_path": "/mnt/efs/vaskarnath/practice/language-model/owt_valid.txt",
+    "val_dataset_path": "/mnt/efs/vaskarnath/practice/language-model/data/owt_valid.txt",
     "gradient_clipping": 1.0,
     "train_input_ids": "/mnt/efs/vaskarnath/practice/language-model/data/owt_train_input_ids.npy",
     "val_input_ids": "/mnt/efs/vaskarnath/practice/language-model/data/owt_valid_input_ids.npy",
     "contrastive_loss": {
-        "use_contrastive_loss": false,
+        "use_contrastive_loss": true,
         "n_samples": 16,
         "beta": 0.5
     }

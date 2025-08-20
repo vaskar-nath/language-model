@@ -13,15 +13,20 @@ import numpy as np
 #     return input_ids, labels
 
 def data_loader(dataset, batch_size: int, context_length: int, device: str = 'cuda'): 
-    if isinstance(dataset, torch.Tensor):
-        dataset = dataset.to(device)
-    else:
-        dataset = torch.tensor(dataset).to(device)
+
     range = len(dataset) - context_length
     rng = np.random.default_rng()          # fastest generator in NumPy ≥1.17
     sampled = rng.choice(range, batch_size, replace=False)
     batch_indices = sampled[:, None] + np.arange(context_length + 1)[None, :] # advanced indexing
     batch_data = dataset[batch_indices]
-    input_ids = batch_data[:, :-1].to(device)
-    labels = batch_data[:, 1:].to(device)
+    input_ids = batch_data[:, :-1]
+    labels = batch_data[:, 1:]
+
+    # if isinstance(dataset, torch.Tensor):
+    #     input_ids = input_ids.to(device)
+    #     labels = labels.to(device)
+    # else:
+    input_ids = torch.tensor(input_ids, dtype=torch.int32).to(device)
+    labels = torch.tensor(labels, dtype=torch.int64).to(device)
+
     return input_ids, labels

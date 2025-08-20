@@ -7,48 +7,48 @@ from heapq import heappush, heappop
 import torch
 from argparse import ArgumentParser
 import os
+import numpy as np
 
 class Tokenizer:
 
-    def __init__(self, vocab: Dict[int, bytes], merges: List[Tuple[bytes, bytes]], special_tokens: list[str] | None = None, pad_token: str = '<|pad|>', eos_token: str = '<|endoftext|>'):
+    def __init__(self, vocab: Dict[int, bytes], merges: List[Tuple[bytes, bytes]], special_tokens: list[str] = [], pad_token: str = '<|pad|>', eos_token: str = '<|endoftext|>'):
         self.vocab = vocab
         self.rvocab = {
             value: key for key, value in self.vocab.items()
         }
         self.merges = merges
-        if special_tokens:
-            self.special_tokens = sorted(special_tokens, key=lambda x: -len(x))
-        else:
-            self.special_tokens = None
-        
-        if special_tokens:
-            for special_token in special_tokens:
-                special_token_bytes = special_token.encode('utf-8')
-                if special_token_bytes not in self.vocab.values():
-                    self.vocab[len(self.vocab)] = special_token_bytes
 
-        # self.pad_token = pad_token
-        # self.eos_token = eos_token
-        
-        # pad_token_bytes = pad_token.encode('utf-8')
-        # if pad_token_bytes not in self.vocab.values():
-        #     key = len(self.vocab)
-        #     self.vocab[key] = pad_token_bytes
-        #     self.rvocab[pad_token_bytes] = key
-        
-        # eos_token_bytes = eos_token.encode('utf-8')
-        # if eos_token_bytes not in self.vocab.values():
-        #     key = len(self.vocab)
-        #     self.vocab[key] = eos_token_bytes
-        #     self.rvocab[eos_token_bytes] = key
-        
-        # self.pad_token_id = self.rvocab[pad_token_bytes]
-        # self.eos_token_id = self.rvocab[eos_token_bytes]
+        if special_tokens is None:
+            special_tokens = []
 
-        # if self.pad_token not in self.special_tokens:
-        #     self.special_tokens.append(self.pad_token)
-        # if self.eos_token not in self.special_tokens:
-        #     self.special_tokens.append(self.eos_token)
+        self.special_tokens = sorted(special_tokens, key=lambda x: -len(x))
+        for special_token in special_tokens:
+            special_token_bytes = special_token.encode('utf-8')
+            if special_token_bytes not in self.vocab.values():
+                self.vocab[len(self.vocab)] = special_token_bytes
+
+        self.pad_token = pad_token
+        self.eos_token = eos_token
+        
+        pad_token_bytes = pad_token.encode('utf-8')
+        if pad_token_bytes not in self.vocab.values():
+            key = len(self.vocab)
+            self.vocab[key] = pad_token_bytes
+            self.rvocab[pad_token_bytes] = key
+        
+        eos_token_bytes = eos_token.encode('utf-8')
+        if eos_token_bytes not in self.vocab.values():
+            key = len(self.vocab)
+            self.vocab[key] = eos_token_bytes
+            self.rvocab[eos_token_bytes] = key
+        
+        self.pad_token_id = self.rvocab[pad_token_bytes]
+        self.eos_token_id = self.rvocab[eos_token_bytes]
+
+        if self.pad_token not in self.special_tokens:
+            self.special_tokens.append(self.pad_token)
+        if self.eos_token not in self.special_tokens:
+            self.special_tokens.append(self.eos_token)
 
     @classmethod
     def from_files(cls, vocab_filepath: str, merges_filepath: str, special_tokens: list[str] | None = None):
@@ -190,4 +190,4 @@ if __name__ == "__main__":
     with open(args.input_path, 'r') as fp:
         corpus = fp.read()
         token_ids = tokenizer.encode(corpus, return_tensors=True, show_progress=args.show_progress)
-        torch.save(token_ids, args.output_path)
+        np.save(args.output_path, token_ids)

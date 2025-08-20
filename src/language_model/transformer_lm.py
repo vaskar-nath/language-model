@@ -112,18 +112,20 @@ class TransformerLM(nn.Module):
 if __name__ == "__main__":
     from src.tokenizer import Tokenizer
     import time
-    model = TransformerLM(vocab_size=10001, context_length=256, d_model=512, num_layers=4, num_heads=16, d_ff=2048, attn_pdrop=0.0, residual_pdrop=0.0, device='cuda')
-    ckpt_path = "/mnt/efs/vaskarnath/practice/spring2024-assignment1-basics/ckpt/checkpoint_157000.pt"
-    vocab_path = "/mnt/efs/vaskarnath/practice/spring2024-assignment1-basics/cs336_basics/data/TinyStoriesV2-GPT4-valid_vocab.json"
-    merges_path = "/mnt/efs/vaskarnath/practice/spring2024-assignment1-basics/cs336_basics/data/TinyStoriesV2-GPT4-valid_merges.txt"
+    import os
+    model = TransformerLM(vocab_size=50000, context_length=512, d_model=512, num_layers=4, num_heads=16, d_ff=2048, attn_pdrop=0.1, residual_pdrop=0.1, device='cuda')
+    ckpt_path = "/mnt/efs/vaskarnath/practice/owt_lm/checkpoint_106000.pt"
+    tokenizer_path = '/mnt/efs/vaskarnath/practice/language-model/tokenizers/owt_train_tokenizer'
+    vocab_path = os.path.join(tokenizer_path, 'vocab.json')
+    merges_path = os.path.join(tokenizer_path, 'merges.txt')
     tokenizer = Tokenizer.from_files(vocab_path, merges_path, ["<|endoftext|>"])
     model.load_state_dict(torch.load(ckpt_path)['model'])
 
-    text = "Once "
-    input_ids = tokenizer.encode(text)
+    text = "The name of the capital of France is"
+    input_ids = tokenizer.encode(text, return_tensors=True)
     print(f"Text: {tokenizer.decode(input_ids.tolist())}")
     c = [KVCache() for _ in range(4)]
-    batch_size = 100
+    batch_size = 1
     model.eval()
     torch.manual_seed(0)
     cache_start_time = time.time()
@@ -131,27 +133,29 @@ if __name__ == "__main__":
         output_ids_cache = model.generate(
             input_ids.unsqueeze(0).repeat(batch_size, 1).to(model.device), 
             max_new_tokens=250, 
-            temperature=0.7, 
-            do_sample=False, 
+            temperature=1.0, 
+            do_sample=True, 
             eos_token=tokenizer.eos_token_id, 
             pad_token=tokenizer.pad_token_id, 
             cache=c
         )
     cache_end_time = time.time()
     torch.manual_seed(0)
-    no_cache_start_time = time.time()
-    with torch.no_grad():
-        output_ids = model.generate(
-            input_ids.unsqueeze(0).repeat(batch_size, 1).to(model.device), 
-            max_new_tokens=250, 
-            temperature=0.7, 
-            do_sample=False, 
-            eos_token=tokenizer.eos_token_id, 
-            pad_token=tokenizer.pad_token_id, 
-            cache=None
-        )
-    no_cache_end_time = time.time()
-    assert torch.allclose(output_ids_cache, output_ids), f"Output ids are not the same, {output_ids_cache} != {output_ids}"
+    # no_cache_start_time = time.time()
+    # with torch.no_grad():
+    #     output_ids = model.generate(
+    #         input_ids.unsqueeze(0).repeat(batch_size, 1).to(model.device), 
+    #         max_new_tokens=250, 
+    #         temperature=0.7, 
+    #         do_sample=True, 
+    #         eos_token=tokenizer.eos_token_id, 
+    #         pad_token=tokenizer.pad_token_id, 
+    #         cache=None
+    #     )
+    # no_cache_end_time = time.time()
+    # assert torch.allclose(output_ids_cache, output_ids), f"Output ids are not the same, {output_ids_cache} != {output_ids}"
     
-    print(f"Time taken with cache: {cache_end_time - cache_start_time} seconds")
-    print(f"Time taken without cache: {no_cache_end_time - no_cache_start_time} seconds")
+    # print(f"Time taken with cache: {cache_end_time - cache_start_time} seconds")
+    # print(f"Time taken without cache: {no_cache_end_time - no_cache_start_time} seconds")
+
+    print(f"Generated text with cache: {tokenizer.decode(output_ids_cache.tolist()[0])}")
