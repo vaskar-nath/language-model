@@ -1,14 +1,13 @@
 {
     "model_configs": {
-        "vocab_size": 50000,
-        "context_length": 512,
+        "vocab_size": 10000,
+        "context_length": 100000,
         "d_model": 512,
-        "num_layers": 4,
-        "num_heads": 16,
+        "num_layers": 32,
+        "num_heads": 32,
         "d_ff": 2048,
         "attn_pdrop": 0.1,
-        "residual_pdrop": 0.1,
-        "weight_decay": 0.1
+        "residual_pdrop": 0.1
     },
     "learning_rate": {
         "max_learning_rate": 6e-4,
@@ -16,6 +15,7 @@
         "warmup_iters": 1000,
         "cosine_cycle_iters": 200000
     },
+    "weight_decay": 0.1,
     "betas": [0.9, 0.95],
     "eps": 1e-8,
     "num_epochs": 1,

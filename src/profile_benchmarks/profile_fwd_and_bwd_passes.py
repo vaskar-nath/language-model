@@ -2,6 +2,7 @@ import argparse
 import json
 import torch
 import time
+import timeit
 
 
 from src.language_model.transformer_lm import TransformerLM
@@ -34,37 +35,37 @@ def parse_args():
     )
     return parser.parse_args()
 
-def timeit(func, args, desc):
-    start_time = time.perf_counter()
+def profile_time(func, args, desc):
+    start_time = timeit.default_timer()
     output = func(**args)
-    end_time = time.perf_counter()
-    print(f"{desc}: {end_time - start_time:.4f} seconds")
+    end_time = timeit.default_timer()
+    print(f"{desc}: {end_time - start_time:.4f} seconds")   
     return output
 
 def main(args):
-    config = json.load(open(args.config))
+    config = json.load(open(args.model_config))
     model = TransformerLM(
             **config['model_configs']
-            ).to('cuda')
+            ).to(args.device)
     
     batch_size = args.batch_size
     context_length = args.context_length
     vocab_size = config['model_configs']['vocab_size']
 
-    random_data = torch.randint(0, vocab_size, (batch_size, context_length + 1))
+    random_data = torch.randint(0, vocab_size-1, (batch_size, context_length + 1), device=args.device)
     input_data = random_data[:, :-1]
     labels = random_data[:, 1:]
 
-    for _ in range(args.num_warmup_up_steps):
+    for _ in range(args.num_warmup_steps):
         logits = model(input_data)
         loss = cross_entropy(logits, labels)
         loss.backward()
 
-    logits = timeit(model, {'x': input_data}, "fwd pass")
+    logits = profile_time(model, {'x': input_data}, "fwd pass")
     loss = cross_entropy(logits, labels)
-    timeit(loss.backward, {}, "bwd_pass")
+    profile_time(loss.backward, {}, "bwd_pass")
 
 
 if __name__ == "__main__":
     args = parse_args()
-    print(args)
+    main(args)
