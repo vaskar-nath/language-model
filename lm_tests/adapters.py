@@ -400,7 +400,8 @@ def run_get_batch(
         is the sampled input sequences, and the second tuple item is the corresponding
         language modeling labels.
     """
-    return data_loader(dataset, batch_size, context_length, device)
+    input_ids, labels, _ = data_loader(dataset, batch_size, context_length, -100, device)
+    return input_ids, labels
 
 
 def run_softmax(in_features: torch.FloatTensor, dim: int) -> torch.FloatTensor:

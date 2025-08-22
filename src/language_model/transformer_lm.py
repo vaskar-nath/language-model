@@ -60,20 +60,23 @@ class TransformerLM(nn.Module):
         self.ln_final.load_state_dict({'weight': weights['ln_final.weight']})
         self.lm_head.weight = nn.Parameter(weights['lm_head.weight'])
 
-    def forward(self, x, return_hidden_states=False, cache=None):
+    def forward(self, x, position_ids=None, return_hidden_states=False, cache=None):
         bs, seq_len = x.shape
         token_emb = self.token_embeddings(x)
         if cache is not None:
             offset_seq_len = cache[0].length()
         else:
             offset_seq_len = 0
-        pos_emb = self.position_embeddings(torch.stack([torch.arange(seq_len, device=self.device) + offset_seq_len] * bs))
+        if position_ids is None:
+            pos_emb = self.position_embeddings(torch.stack([torch.arange(seq_len, device=self.device) + offset_seq_len] * bs))
+        else:
+            pos_emb = self.position_embeddings(position_ids)
         x = F.dropout(token_emb + pos_emb, self.residual_pdrop)
         for i, layer in enumerate(self.layers):
             if cache is not None:
-                x = layer(x, cache[i])
+                x = layer(x, position_ids=position_ids, cache=cache[i])
             else:
-                x = layer(x)
+                x = layer(x, position_ids=position_ids)
             if i == len(self.layers) - 1:
                 final_hidden_states = x
         logits = self.lm_head(self.ln_final(x))

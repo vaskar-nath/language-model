@@ -55,14 +55,14 @@ class SFTTrainer(Trainer):
 
     def _data_loader_wrapper(self, train_input_ids, num_samples):
         for _ in range(num_samples):
-            input_ids, labels = self.data_loader_fn(train_input_ids, self.config['batch_size'], self.config['context_length'], 'cuda')
-            yield {'input_ids': input_ids, 'labels': labels}
+            input_ids, labels, position_ids = self.data_loader_fn(train_input_ids, self.config['batch_size'], self.config['model_configs']['context_length'], self.tokenizer.eos_token_id, 'cuda')
+            yield {'input_ids': input_ids, 'labels': labels, 'position_ids': position_ids}
 
     def _prepare_val_input_ids(self, batch_size):
         len_val_input_ids = len(self.val_input_ids)
-        cutoff = len_val_input_ids - (len_val_input_ids % (self.config['context_length'] * batch_size))
+        cutoff = len_val_input_ids - (len_val_input_ids % (self.config['model_configs']['context_length'] * batch_size))
         val_input_ids = self.val_input_ids[:cutoff].to(self.model.device)
-        val_input_ids = val_input_ids.reshape(-1, batch_size, self.config['context_length'])
+        val_input_ids = val_input_ids.reshape(-1, batch_size, self.config['model_configs']['context_length'])
         input_ids = val_input_ids[:, :, :-1]
         labels = val_input_ids[:, :, 1:]
         return {'input_ids': input_ids, 'labels': labels}
@@ -86,7 +86,7 @@ class SFTTrainer(Trainer):
             self.optimizer.zero_grad()
             self.model.zero_grad()
 
-            logits, final_hidden_states = self.model(batch['input_ids'], return_hidden_states=True)
+            logits, final_hidden_states = self.model(batch['input_ids'], position_ids=batch['position_ids'], return_hidden_states=True)
             loss = self.loss_fn(logits, batch['labels'])
 
             metrics['lm_loss'] = loss.item()
@@ -165,20 +165,9 @@ def main():
 
     config = json.load(open(args.config))
 
+    model = TransformerLM(**config['model_configs']).to('cuda')
 
-    model = TransformerLM(
-        vocab_size=config['vocab_size'],
-        context_length=config['context_length'],
-        d_model=config['d_model'],
-        num_layers=config['num_layers'],
-        num_heads=config['num_heads'],
-        d_ff=config['d_ff'],
-        attn_pdrop=config['attn_pdrop'],
-        residual_pdrop=config['residual_pdrop']
-    ).to('cuda')
-
-    pretty_log(f"model: {model}")
-    
+    pretty_log(f"model: {model}")    
     pretty_log("Loading tokenizer")
     tokenizer = Tokenizer.from_files(config['vocab_filepath'], config['merges_filepath'], config['special_tokens'])
 

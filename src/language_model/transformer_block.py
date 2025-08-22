@@ -49,8 +49,8 @@ class TransformerBlock(nn.Module):
             'weight': weights['ln2.weight']
         })
 
-    def forward(self, x, cache=None):
-        x = x + F.dropout(self.attn(self.ln1(x), cache), self.residual_pdrop)
+    def forward(self, x, position_ids=None, cache=None):
+        x = x + F.dropout(self.attn(self.ln1(x), position_ids=position_ids, cache=cache), self.residual_pdrop)
         x = x + F.dropout(self.ffn(self.ln2(x)), self.residual_pdrop)
         return x
         

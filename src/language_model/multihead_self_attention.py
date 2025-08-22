@@ -26,7 +26,7 @@ class MultiHeadSelfAttention(nn.Module):
         self.k_proj = nn.Parameter(torch.stack([weights[f'k_heads.{n}.weight'] for n in range(self.n_heads)]))
         self.output_proj = nn.Parameter(weights['output_proj.weight'])
 
-    def forward(self, x, cache=None):
+    def forward(self, x, position_ids=None, cache=None):
 
         
         q = torch.matmul(x.unsqueeze(-3), self.q_proj.transpose(-2, -1))
@@ -37,6 +37,12 @@ class MultiHeadSelfAttention(nn.Module):
             k, v = cache.extend(k, v)
         
         mask = torch.triu(torch.ones((q.shape[-2], q.shape[-2]), device=q.device), diagonal=1).bool()
+        
+        if position_ids is not None:
+            starts = (position_ids == 0).to(torch.long)
+            segment_ids = starts.cumsum(dim=1)
+            mask = mask | (segment_ids.unsqueeze(-1) != segment_ids.unsqueeze(-2)).unsqueeze(1).repeat(1, self.n_heads, 1, 1)
+        
         attention_output = scaled_dot_product_attention(q, k, v, mask, self.attn_pdrop)
         
         shape = list(x.shape)
