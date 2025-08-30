@@ -29,19 +29,18 @@ class KVCache:
 
 class TransformerLM(nn.Module):
 
-    def __init__(self, vocab_size, context_length, d_model, num_layers, num_heads, d_ff, attn_pdrop, residual_pdrop, device='cuda'):
+    def __init__(self, vocab_size, context_length, d_model, num_layers, num_heads, d_ff, attn_pdrop, residual_pdrop):
         super(TransformerLM, self).__init__()
         self.residual_pdrop = residual_pdrop
-        self.token_embeddings = nn.Embedding(vocab_size, d_model).to(device)
-        self.position_embeddings = nn.Embedding(context_length, d_model).to(device)
+        self.token_embeddings = nn.Embedding(vocab_size, d_model)
+        self.position_embeddings = nn.Embedding(context_length, d_model)
         self.layers = nn.Sequential(
             OrderedDict([
-                (f'{i}', TransformerBlock(d_model, num_heads, d_ff, attn_pdrop, residual_pdrop).to(device)) for i in range(num_layers)
+                (f'{i}', TransformerBlock(d_model, num_heads, d_ff, attn_pdrop, residual_pdrop)) for i in range(num_layers)
             ])
         )
-        self.ln_final = RMSNorm(d_model).to(device)
-        self.lm_head = nn.Linear(d_model, vocab_size, bias=False).to(device)
-        self.device = device
+        self.ln_final = RMSNorm(d_model)
+        self.lm_head = nn.Linear(d_model, vocab_size, bias=False)
     
     def load_state_dict(self, weights):
         self.token_embeddings.weight = nn.Parameter(weights['token_embeddings.weight'])
@@ -62,13 +61,14 @@ class TransformerLM(nn.Module):
 
     def forward(self, x, position_ids=None, return_hidden_states=False, cache=None):
         bs, seq_len = x.shape
+        device = x.device
         token_emb = self.token_embeddings(x)
         if cache is not None:
             offset_seq_len = cache[0].length()
         else:
             offset_seq_len = 0
         if position_ids is None:
-            pos_emb = self.position_embeddings(torch.stack([torch.arange(seq_len, device=self.device) + offset_seq_len] * bs))
+            pos_emb = self.position_embeddings(torch.stack([torch.arange(seq_len, device=device) + offset_seq_len] * bs))
         else:
             pos_emb = self.position_embeddings(position_ids)
         x = F.dropout(token_emb + pos_emb, self.residual_pdrop)

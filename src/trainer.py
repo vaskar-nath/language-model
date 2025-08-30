@@ -161,11 +161,15 @@ def pretty_log(log_str: str):
 def main():
     parser = ArgumentParser()
     parser.add_argument('--config', type=str, default='config.json')
+    parser.add_argument('--device', type=str, default='cuda')
     args = parser.parse_args()
 
     config = json.load(open(args.config))
 
-    model = TransformerLM(**config['model_configs']).to('cuda')
+    print(f"{args.device=}")
+    model = TransformerLM(**config['model_configs'], device=args.device)
+    if args.device == 'cuda':
+        model = TransformerLM(**config['model_configs']).to(args.device)
 
     pretty_log(f"model: {model}")    
     pretty_log("Loading tokenizer")

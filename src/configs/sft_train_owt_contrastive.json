@@ -1,11 +1,11 @@
 {
     "model_configs": {
         "vocab_size": 10000,
-        "context_length": 100000,
+        "context_length": 512,
         "d_model": 512,
-        "num_layers": 32,
-        "num_heads": 32,
-        "d_ff": 2048,
+        "num_layers": 4,
+        "num_heads": 4,
+        "d_ff": 16,
         "attn_pdrop": 0.1,
         "residual_pdrop": 0.1
     },

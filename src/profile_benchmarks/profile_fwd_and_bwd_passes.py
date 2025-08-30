@@ -1,7 +1,6 @@
 import argparse
 import json
 import torch
-import time
 import timeit
 
 
@@ -45,7 +44,7 @@ def profile_time(func, args, desc):
 def main(args):
     config = json.load(open(args.model_config))
     model = TransformerLM(
-            **config['model_configs']
+            **config['model_configs'],
             ).to(args.device)
     
     batch_size = args.batch_size
