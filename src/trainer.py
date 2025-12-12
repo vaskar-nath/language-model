@@ -34,7 +34,7 @@ class Trainer(ABC):
 
 class SFTTrainer(Trainer):
 
-    def __init__(self, model, train_input_ids, val_input_ids, data_loader_fn, tokenizer, config):
+    def __init__(self, model, train_input_ids, val_input_ids, data_loader_fn, tokenizer, config, device):
         super().__init__(model, train_input_ids, val_input_ids, data_loader_fn, tokenizer, config)
         self.loss_fn = cross_entropy
         self.optimizer = AdamW(
@@ -51,17 +51,18 @@ class SFTTrainer(Trainer):
             config['learning_rate']['warmup_iters'], 
             config['learning_rate']['cosine_cycle_iters']
         )
+        self.device = device
 
 
     def _data_loader_wrapper(self, train_input_ids, num_samples):
         for _ in range(num_samples):
-            input_ids, labels, position_ids = self.data_loader_fn(train_input_ids, self.config['batch_size'], self.config['model_configs']['context_length'], self.tokenizer.eos_token_id, 'cuda')
+            input_ids, labels, position_ids = self.data_loader_fn(train_input_ids, self.config['batch_size'], self.config['model_configs']['context_length'], self.tokenizer.eos_token_id, self.device)
             yield {'input_ids': input_ids, 'labels': labels, 'position_ids': position_ids}
 
     def _prepare_val_input_ids(self, batch_size):
         len_val_input_ids = len(self.val_input_ids)
         cutoff = len_val_input_ids - (len_val_input_ids % (self.config['model_configs']['context_length'] * batch_size))
-        val_input_ids = self.val_input_ids[:cutoff].to(self.model.device)
+        val_input_ids = self.val_input_ids[:cutoff]
         val_input_ids = val_input_ids.reshape(-1, batch_size, self.config['model_configs']['context_length'])
         input_ids = val_input_ids[:, :, :-1]
         labels = val_input_ids[:, :, 1:]
@@ -167,9 +168,8 @@ def main():
     config = json.load(open(args.config))
 
     print(f"{args.device=}")
-    model = TransformerLM(**config['model_configs'], device=args.device)
-    if args.device == 'cuda':
-        model = TransformerLM(**config['model_configs']).to(args.device)
+    model = TransformerLM(**config['model_configs'])
+    model = model.to(args.device)
 
     pretty_log(f"model: {model}")    
     pretty_log("Loading tokenizer")
@@ -179,25 +179,25 @@ def main():
     print(f"vocab size: {len(tokenizer.vocab)}")
 
     # check if train_input_ids and val_input_ids exist
-    if not os.path.exists(config['train_input_ids']):
-        pretty_log("Loading val dataset")
-        val_dataset = open(config['val_dataset_path']).read()
-        train_dataset = open(config['train_dataset_path']).read()
-        pretty_log(f"Encoding train dataset: {len(train_dataset)}")
-        train_input_ids = tokenizer.encode(train_dataset)
-        pretty_log(f"Encoding val dataset: {len(val_dataset)}")
-        val_input_ids = tokenizer.encode(val_dataset)
-        torch.save(train_input_ids, config['train_input_ids'])
-        torch.save(val_input_ids, config['val_input_ids'])
-    else:
-        # train_input_ids = np.memmap(config['train_input_ids'], mode='r', dtype=np.int32)
-        train_input_ids = torch.from_numpy(np.load(config['train_input_ids']))
-        val_input_ids = torch.from_numpy(np.load(config['val_input_ids']))
+    # if not os.path.exists(config['train_input_ids']):
+    pretty_log("Loading val dataset")
+    val_dataset = open(config['val_dataset_path']).read()
+    train_dataset = open(config['train_dataset_path']).read()
+    pretty_log(f"Encoding train dataset: {len(train_dataset)}")
+    train_input_ids = tokenizer.encode(train_dataset[:10000], return_tensors=True)   
+    pretty_log(f"Encoding val dataset: {len(val_dataset)}")
+    val_input_ids = tokenizer.encode(val_dataset[:10000], return_tensors=True)
+    torch.save(train_input_ids, config['train_input_ids'])
+    torch.save(val_input_ids, config['val_input_ids'])
+    # else:
+    #     # train_input_ids = np.memmap(config['train_input_ids'], mode='r', dtype=np.int32)
+    #     train_input_ids = torch.from_numpy(np.load(config['train_input_ids']))
+    #     val_input_ids = torch.from_numpy(np.load(config['val_input_ids']))
 
     print(f"Train input ids: {len(train_input_ids)}", flush=True)
     print(f"Val input ids: {len(val_input_ids)}", flush=True)
 
-    trainer = SFTTrainer(model, train_input_ids, val_input_ids, data_loader, tokenizer, config)
+    trainer = SFTTrainer(model, train_input_ids, val_input_ids, data_loader, tokenizer, config, args.device)
     trainer.fit()
 
 if __name__ == '__main__':
